@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaimana's GradientColor</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <!-- html2canvas 用于截图导出 -->
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#64748b',
+            accent: '#f97316',
+            light: '#f8fafc',
+            dark: '#1e293b'
+          },
+          fontFamily: {
+            sans: ['sans-serif','Inter', 'system-ui', ],
+          },
+          boxShadow: {
+            'soft': '0 4px 20px rgba(0, 0, 0, 0.05)',
+            'medium': '0 6px 25px rgba(0, 0, 0, 0.1)',
+            'hard': '0 10px 30px rgba(0, 0, 0, 0.15)',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .gradient-transition {
+        transition: background 0.5s ease;
+      }
+      
+      .color-transition {
+        transition: all 0.3s ease;
+      }
+      
+      .button-hover {
+        @apply hover:shadow-md hover:-translate-y-0.5 transition-all duration-300;
+      }
+      
+      .button-active {
+        @apply active:shadow-sm active:translate-y-0 transition-all duration-150;
+      }
+      
+      .color-picker-shadow {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+      
+      .angle-slider {
+        @apply appearance-none w-full h-2 rounded-full bg-gray-200;
+      }
+      
+      .angle-slider::-webkit-slider-thumb {
+        @apply appearance-none w-5 h-5 rounded-full bg-primary cursor-pointer shadow-md;
+      }
+      
+      .color-preview {
+        @apply w-16 h-16 rounded-xl cursor-pointer shadow-soft hover:shadow-medium transition-all duration-300;
+      }
+      
+      .hex-code {
+        @apply w-16 text-center font-mono text-sm mt-2 cursor-pointer transition-colors duration-200 hover:text-primary;
+      }
+    .control-section {
+        @apply bg-white rounded-xl border border-gray-100 shadow-sm p-4;
+    }
+    
+    .control-label {
+        @apply text-sm font-medium text-gray-700;
+    }
+    
+    .control-value {
+        @apply bg-gray-50 text-gray-800 px-2 py-1 rounded text-sm font-mono;
+    }
+      .color-item {
+        @apply  gap-2 px-1; /* 减小色块与编码之间的间距 */
+    }
+    
+    .hex-code {
+        @apply mt-0.5; /* 调整编码的上边距，进一步减小间距 */
+    }
+      .text-display-optimized {
+        /* @apply whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-4; */
+          white-space: nowrap;
+          overflow: visible;
+          text-overflow: clip;
+          max-width: none;
+          padding: 0 1rem;
+          font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    }
+    
+    /* 新增样式 */
+    .color-controls-container {
+        @apply grid gap-3 md:gap-4 transition-all duration-300;
+    }
+    
+    .color-controls-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    
+    .color-controls-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    
+    .color-controls-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+
+    .color-item {
+    @apply flex flex-col items-center gap-1 px-1 cursor-move; /* 添加 cursor-move */
+    transition: all 0.3s ease;
+    }
+
+    .color-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    }
+
+    .color-item.drag-over {
+    border: 2px dashed #3b82f6;
+    border-radius: 12px;
+    background-color: rgba(59, 130, 246, 0.05);
+    }
+
+
+    /* 防止文本选择 */
+    .color-item {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen flex flex-col">
+  <!-- 导出区域容器 -->
+  <div id="export-container" class="flex flex-col min-h-screen">
+    <!-- 顶部：渐变色展示区域 -->
+    <header id="gradient-display" class="flex-1 flex flex-col items-center justify-center p-3 gradient-transition">
+      <div id="title-display" class="text-black text-1xl md:text-4xl font-bold tracking-wider transition-opacity duration-500 text-display-optimized">
+      GradientColor
+    </div>
+    <div id="text-display" class="text-black text-sm md:text-sm font-bold tracking-wider transition-opacity duration-500 text-display-optimized">
+      @Kaimana
+    </div>
+    </header>
+
+    <!-- 底部：颜色控制区 -->
+    <div class="p-4 md:p-6 bg-white shadow-soft">
+      <!-- 动态颜色控制区域 -->
+      <div id="color-controls-container" class="color-controls-container color-controls-3 mb-4">
+        <!-- 颜色项将由JavaScript动态生成 -->
+      </div>
+      
+      <!-- 导出按钮 -->
+      <div class="mt-2 gap-2 flex justify-center">
+        <button id="random-btn" class="px-3 py-1.5 rounded-full bg-pink-500/90 text-white button-hover button-active">
+          <i class="fa fa-random mr-2"></i>随机
+        </button>
+                <!-- 新增：布局切换按钮 -->
+        <button id="layout-btn" class="px-3 py-1.5 rounded-full bg-purple-500 text-white button-hover button-active text-sm">
+          <i class="fa fa-magic mr-1"></i>布局:线性
+        </button>
+        <button id="export-btn" class="px-3 py-1.5 rounded-full bg-accent text-white button-hover button-active">
+          <i class="fa fa-download mr-2"></i>导出
+        </button>
+        <!-- 随机生成 -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- 功能控制区 -->
+  <div id="control-area" class="bg-white border-t border-gray-100 py-4 px-6 shadow-sm">
+    <div class="max-w-3xl mx-auto">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-base font-semibold text-gray-800">渐变设置</h3>
+        <button id="toggle-direction" class="text-sm text-primary hover:text-primary/80 transition-colors">
+          <i class="fa fa-chevron-up mr-1"></i> 收起
+        </button>
+      </div>
+      
+      <div id="direction-controls" class="flex flex-col md:flex-row justify-between items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+        <div class="w-full md:w-auto flex items-center gap-3">
+          <label for="angle-slider" class="text-sm text-gray-700 font-medium w-20">角度:</label>
+          <input type="range" id="angle-slider" class="angle-slider w-24 md:w-40" min="0" max="360" value="167">
+          <span id="angle-value" class="text-sm font-mono bg-white px-2 py-1 rounded border border-gray-200">167°</span>
+        </div>
+        
+        <!-- 文本显示/隐藏切换和编辑文本按钮 -->
+        <div class="flex gap-2">
+          <button id="text-toggle" class="px-3 py-1.5 rounded-lg bg-primary/90 text-white text-sm button-hover button-active">
+            <i class="fa fa-eye mr-1"></i>隐藏文本
+          </button>
+          <button id="edit-text" class="px-3 py-1.5 rounded-lg text-sm text-white button-hover button-active bg-green-500">
+            <i class="fa fa-pencil mr-1"></i>编辑文本
+          </button>
+        </div>
+        
+        <!-- 新增：颜色数量控制按钮 -->
+        <div class="flex gap-2">
+          <button id="add-color" class="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm button-hover button-active">
+            <i class="fa fa-plus mr-1"></i>添加颜色
+          </button>
+          <button id="remove-color" class="px-3 py-1.5 rounded-lg bg-red-500 text-white text-sm button-hover button-active">
+            <i class="fa fa-minus mr-1"></i>删除颜色
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 颜色选择器模态框 -->
+  <div id="color-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 color-picker-shadow transform transition-transform duration-300 scale-95">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">选择颜色</h3>
+        <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <input type="color" id="color-input" class="w-full h-20 rounded-lg cursor-pointer">
+      </div>
+      
+      <div class="flex justify-end gap-3">
+        <button id="cancel-color" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 button-hover button-active">
+          取消
+        </button>
+        <button id="confirm-color" class="px-4 py-2 bg-primary text-white rounded-lg button-hover button-active">
+          确认
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 导出选项模态框 -->
+  <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 color-picker-shadow transform transition-transform duration-300 scale-95">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">导出选项</h3>
+        <button id="close-export-modal" class="text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <button id="export-image" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-left hover:bg-gray-50 button-hover button-active">
+          <i class="fa fa-file-image-o text-primary mr-2"></i>导出为图片
+        </button>
+        <button id="export-css" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-left hover:bg-gray-50 button-hover button-active">
+          <i class="fa fa-file-code-o text-primary mr-2"></i>复制CSS代码
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 通知提示 -->
+  <div id="notification" class="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-gray-800 text-white shadow-hard transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+    <span id="notification-text">操作成功</span>
+  </div>
+
+  <!-- 文本编辑模态框 -->
+  <div id="text-edit-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 color-picker-shadow transform transition-transform duration-300 scale-95">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">编辑文本</h3>
+        <button id="close-text-modal" class="text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <input type="text" id="text-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg" value="@Kaimana">
+        <div class="flex justify-between items-center mt-1">
+          <span id="char-count" class="text-xs text-gray-500">8/20</span>
+          <span id="char-warning" class="text-xs text-red-500 hidden">最多输入20个字符</span>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-sm text-gray-700">文本颜色:</span>
+        <button id="toggle-text-color" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm button-hover button-active">
+          <i class="fa fa-font mr-1"></i>切换白色
+        </button>
+      </div>
+
+      
+      <div class="flex justify-end gap-3">
+        <button id="cancel-text" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 button-hover button-active">
+          取消
+        </button>
+        <button id="confirm-text" class="px-4 py-2 bg-primary text-white rounded-lg button-hover button-active">
+          确认
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    // 全局变量
+    let currentColors = ['#F5C2EC', '#90F4D6', '#A7F791'];
+    let currentAngle = 167;  //角度设置
+    let textVisible = true;
+    let targetColorIndex = null;
+    let currentTextColor = 'black'; // 默认文本颜色为黑色
+
+    // 新增：渐变模式 (linear, radial, conic, mesh)
+    let currentMode = 'linear'; 
+    // 定义模式名称映射，用于显示
+    // 修改：只保留高级感的模式
+        const modeNames = {
+            'linear': '布局:线性',
+            'mesh': '布局:弥散',   // 优化后的 Mesh
+            'aurora': '布局:极光'  // 新增的 Atmosphere 风格
+        };
+
+    // 拖拽相关变量
+    let dragSourceIndex = null;
+    // DOM元素
+    const gradientDisplay = document.getElementById('gradient-display');
+    const textDisplay = document.getElementById('text-display');
+    const titleDisplay = document.getElementById('title-display');
+    const textToggle = document.getElementById('text-toggle');
+    const angleSlider = document.getElementById('angle-slider');
+    const angleValue = document.getElementById('angle-value');
+    const colorControlsContainer = document.getElementById('color-controls-container');
+    const addColorBtn = document.getElementById('add-color');
+    const removeColorBtn = document.getElementById('remove-color');
+
+    // 文本编辑功能
+    const editTextBtn = document.getElementById('edit-text');
+    const textEditModal = document.getElementById('text-edit-modal');
+    const textInput = document.getElementById('text-input');
+    const closeTextModal = document.getElementById('close-text-modal');
+    const cancelText = document.getElementById('cancel-text');
+    const confirmText = document.getElementById('confirm-text');
+    const charCount = document.getElementById('char-count');
+    const charWarning = document.getElementById('char-warning');
+
+    const colorPickerModal = document.getElementById('color-picker-modal');
+    const colorInput = document.getElementById('color-input');
+    const closeModal = document.getElementById('close-modal');
+    const cancelColor = document.getElementById('cancel-color');
+    const confirmColor = document.getElementById('confirm-color');
+    const exportBtn = document.getElementById('export-btn');
+    const exportModal = document.getElementById('export-modal');
+    const closeExportModal = document.getElementById('close-export-modal');
+    const exportImage = document.getElementById('export-image');
+    const exportCss = document.getElementById('export-css');
+    const notification = document.getElementById('notification');
+    const notificationText = document.getElementById('notification-text');
+    // 渐变方向控制收起/展开相关元素
+    const toggleDirectionBtn = document.getElementById('toggle-direction');
+    const directionControls = document.getElementById('direction-controls');
+    // 导出区域容器
+    const exportContainer = document.getElementById('export-container');
+    
+
+    // 检测是否为移动设备
+    function isMobileDevice() {
+      return (('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0) ||
+        (navigator.msMaxTouchPoints > 0));
+    }
+
+    // 初始化页面
+    function init() {
+      renderColorControls();
+      updateGradient();
+      setupEventListeners();
+
+      // 确保文本颜色正确设置
+      textDisplay.style.color = currentTextColor;
+      titleDisplay.style.color = currentTextColor;
+
+      // 根据设备显示提示
+      if (isMobileDevice()) {
+        console.log('移动端模式：使用触摸拖拽');
+      } else {
+        console.log('桌面端模式：使用鼠标拖拽');
+      }
+    }
+    
+
+    // 绑定拖拽事件
+    function bindDragEvents() {
+    const colorItems = document.querySelectorAll('.color-item');
+    
+    colorItems.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('dragenter', handleDragEnter);
+        item.addEventListener('dragleave', handleDragLeave);
+        item.addEventListener('drop', handleDrop);
+    });
+    }
+    // 拖拽开始
+    function handleDragStart(e) {
+        dragSourceIndex = parseInt(this.getAttribute('data-index'));
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragSourceIndex);
+    }
+
+    // 拖拽结束
+    function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    // 移除所有drag-over样式
+    document.querySelectorAll('.color-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+    dragSourceIndex = null;
+    }
+
+    // 拖拽经过
+    function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+    }
+
+    // 拖拽进入
+    function handleDragEnter(e) {
+    e.preventDefault();
+    this.classList.add('drag-over');
+    }
+
+    // 拖拽离开
+    function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+    }
+    // 放置
+    function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const dragTargetIndex = parseInt(this.getAttribute('data-index'));
+    
+    if (dragSourceIndex !== null && dragSourceIndex !== dragTargetIndex) {
+        // 交换颜色位置
+        swapColors(dragSourceIndex, dragTargetIndex);
+        // 重新渲染颜色控件
+        renderColorControls();
+        // 更新渐变
+        updateGradient();
+        // 显示通知
+        showNotification(`颜色位置已调整`);
+    }
+    
+    this.classList.remove('drag-over');
+    return false;
+    }
+    // 交换颜色位置
+    function swapColors(fromIndex, toIndex) {
+    const temp = currentColors[fromIndex];
+    currentColors[fromIndex] = currentColors[toIndex];
+    currentColors[toIndex] = temp;
+    }
+    
+    
+
+    // 移动端拖拽相关变量 - 添加计时器
+    let touchDragData = {
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    draggedItem: null,
+    originalIndex: null,
+    currentIndex: null,
+    touchTimer: null, // 添加计时器
+    isClick: true // 标记是否为点击
+    };
+
+    // 绑定移动端触摸事件
+    function bindTouchEvents() {
+    const colorItems = document.querySelectorAll('.color-item');
+    
+    colorItems.forEach(item => {
+        // 触摸开始 - 改为 passive: true 不阻止默认行为
+        item.addEventListener('touchstart', handleTouchStart, { passive: true });
+        // 触摸移动
+        item.addEventListener('touchmove', handleTouchMove, { passive: false });
+        // 触摸结束
+        item.addEventListener('touchend', handleTouchEnd, { passive: true });
+        // 触摸取消
+        item.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    });
+    }
+
+    // 触摸开始 - 修改为延迟判断
+    function handleTouchStart(e) {
+    const touch = e.touches[0];
+    const item = e.currentTarget;
+    
+    // 清除可能存在的旧计时器
+    if (touchDragData.touchTimer) {
+        clearTimeout(touchDragData.touchTimer);
+    }
+    
+    touchDragData = {
+        isDragging: false,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        draggedItem: item,
+        originalIndex: parseInt(item.getAttribute('data-index')),
+        currentIndex: parseInt(item.getAttribute('data-index')),
+        touchTimer: null,
+        isClick: true
+    };
+    
+    // 设置计时器，150ms后如果还在触摸，则认为是拖拽
+    touchDragData.touchTimer = setTimeout(() => {
+        if (touchDragData.draggedItem && touchDragData.isClick) {
+        // 150ms后仍然在触摸，准备拖拽
+        touchDragData.isClick = false;
+        touchDragData.draggedItem.classList.add('dragging');
+        console.log('进入拖拽准备状态');
+        }
+    }, 150);
+    }
+
+
+    // 触摸移动 - 修改判断逻辑
+    function handleTouchMove(e) {
+    if (!touchDragData.draggedItem || touchDragData.isClick) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchDragData.startX;
+    const deltaY = touch.clientY - touchDragData.startY;
+    
+    // 判断是否开始拖拽（移动超过10px）
+    if (!touchDragData.isDragging && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
+        touchDragData.isDragging = true;
+        touchDragData.draggedItem.style.transition = 'none';
+        touchDragData.draggedItem.style.zIndex = '1000';
+        console.log('开始拖拽');
+    }
+    
+    if (touchDragData.isDragging) {
+        // 更新元素位置
+        touchDragData.draggedItem.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        
+        // 检测当前悬停的位置
+        const hoveredItem = getHoveredItem(touch.clientX, touch.clientY);
+        if (hoveredItem) {
+        const newIndex = parseInt(hoveredItem.getAttribute('data-index'));
+        console.log('检测到悬停位置:', newIndex, '当前索引:', touchDragData.currentIndex);
+        
+        if (newIndex !== touchDragData.currentIndex) {
+            console.log('执行交换:', touchDragData.currentIndex, '->', newIndex);
+            swapColorsDuringDrag(touchDragData.currentIndex, newIndex);
+            touchDragData.currentIndex = newIndex;
+        }
+        }
+    }
+    }
+
+
+
+    // 触摸结束 - 修改为区分点击和拖拽
+    function handleTouchEnd(e) {
+    // 清除计时器
+    if (touchDragData.touchTimer) {
+        clearTimeout(touchDragData.touchTimer);
+    }
+    
+    if (!touchDragData.draggedItem) return;
+    
+    // 如果是点击行为，触发颜色选择
+    if (touchDragData.isClick && !touchDragData.isDragging) {
+        console.log('识别为点击，触发颜色选择');
+        const index = touchDragData.originalIndex;
+        setTimeout(() => {
+        targetColorIndex = index;
+        colorInput.value = currentColors[index];
+        openColorPickerModal();
+        }, 50);
+        
+        // 重置拖拽数据
+        touchDragData = {
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        draggedItem: null,
+        originalIndex: null,
+        currentIndex: null,
+        touchTimer: null,
+        isClick: true
+        };
+        return;
+    }
+    
+    // 以下是拖拽结束的处理逻辑
+    console.log('触摸结束，最终状态:', {
+        isDragging: touchDragData.isDragging,
+        originalIndex: touchDragData.originalIndex,
+        currentIndex: touchDragData.currentIndex
+    });
+    
+    // 如果拖拽过程中没有检测到交换，在结束时再次检测
+    if (touchDragData.isDragging && touchDragData.currentIndex === touchDragData.originalIndex) {
+        const touch = e.changedTouches[0];
+        const hoveredItem = getHoveredItem(touch.clientX, touch.clientY);
+        if (hoveredItem) {
+        const finalIndex = parseInt(hoveredItem.getAttribute('data-index'));
+        if (finalIndex !== touchDragData.originalIndex) {
+            console.log('最终位置检测到交换:', touchDragData.originalIndex, '->', finalIndex);
+            swapColors(touchDragData.originalIndex, finalIndex);
+            touchDragData.currentIndex = finalIndex;
+        }
+        }
+    }
+    
+    // 重置样式
+    if (touchDragData.draggedItem) {
+        touchDragData.draggedItem.style.transition = '';
+        touchDragData.draggedItem.style.transform = '';
+        touchDragData.draggedItem.style.zIndex = '';
+        touchDragData.draggedItem.classList.remove('dragging');
+    }
+    
+    // 移除所有drag-over样式
+    document.querySelectorAll('.color-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+    
+    // 如果发生了拖拽交换，更新界面
+    if (touchDragData.isDragging && touchDragData.currentIndex !== touchDragData.originalIndex) {
+        console.log('执行界面更新');
+        // 重新渲染颜色控件
+        renderColorControls();
+        // 更新渐变
+        updateGradient();
+        // 显示通知
+        showNotification(`颜色位置已调整`);
+    } else if (touchDragData.isDragging) {
+        console.log('拖拽但未交换');
+    }
+    
+    // 重置拖拽数据
+    touchDragData = {
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        draggedItem: null,
+        originalIndex: null,
+        currentIndex: null,
+        touchTimer: null,
+        isClick: true
+    };
+    }
+
+
+
+    // 获取当前触摸位置对应的元素（排除拖拽元素自身）
+    function getHoveredItem(x, y) {
+      const elements = document.elementsFromPoint(x, y);
+      console.log('elementsFromPoint 结果:', elements);
+      console.log('检测坐标:', x, y);
+      
+      for (let element of elements) {
+        // 排除拖拽元素自身，并且确保是颜色项
+        if (element.classList.contains('color-item') && element !== touchDragData.draggedItem) {
+          console.log('找到目标颜色项:', element.getAttribute('data-index'));
+          return element;
+        }
+      }
+      console.log('未找到可交换的颜色项');
+      return null;
+    }
+
+    // 在拖拽过程中交换颜色
+    function swapColorsDuringDrag(fromIndex, toIndex) {
+      console.log('尝试交换颜色:', fromIndex, '->', toIndex);
+      
+      // 交换数组中的颜色
+      const temp = currentColors[fromIndex];
+      currentColors[fromIndex] = currentColors[toIndex];
+      currentColors[toIndex] = temp;
+      
+      // 更新所有颜色项的data-index属性
+      const colorItems = document.querySelectorAll('.color-item');
+      colorItems.forEach((item, index) => {
+        item.setAttribute('data-index', index);
+        if (index === toIndex) {
+          item.classList.add('drag-over');
+        } else {
+          item.classList.remove('drag-over');
+        }
+      });
+    }
+
+
+    // 渲染颜色控制元素
+    function renderColorControls() {
+      colorControlsContainer.innerHTML = '';
+      
+      // 根据颜色数量更新容器类
+      colorControlsContainer.className = `color-controls-container color-controls-${currentColors.length} mb-4`;
+      
+      currentColors.forEach((color, index) => {
+        const colorItem = document.createElement('div');
+        colorItem.className = 'color-item flex flex-col items-center';
+        colorItem.setAttribute('draggable', 'true');
+        colorItem.setAttribute('data-index', index);
+        
+        colorItem.innerHTML = `
+          
+          <div id="color${index+1}-preview" class="color-preview" style="background-color: ${color};"></div>
+          <div id="color${index+1}-hex" class="hex-code">${color.toUpperCase()}</div>
+        `;
+        colorControlsContainer.appendChild(colorItem);
+      });
+      
+      // 重新绑定事件
+      bindColorEvents();
+      // 绑定拖拽事件（桌面端）
+      bindDragEvents();
+      // 绑定触摸事件（移动端）
+      bindTouchEvents();
+    }
+    
+    // 绑定颜色事件
+    function bindColorEvents() {
+    const colorPreviews = [];
+    const colorHexes = [];
+    
+    for (let i = 0; i < currentColors.length; i++) {
+        colorPreviews.push(document.getElementById(`color${i+1}-preview`));
+        colorHexes.push(document.getElementById(`color${i+1}-hex`));
+    }
+    
+    // 颜色预览点击事件 - 桌面端专用
+    colorPreviews.forEach((preview, index) => {
+        preview.addEventListener('click', (e) => {
+        // 移动端由触摸事件处理，这里只处理桌面端
+        if (isMobileDevice()) return;
+        
+        setTimeout(() => {
+            targetColorIndex = index;
+            colorInput.value = currentColors[index];
+            openColorPickerModal();
+        }, 150);
+        });
+    });
+    
+    // 颜色HEX码点击事件 - 桌面端专用
+    colorHexes.forEach((hex, index) => {
+        hex.addEventListener('click', (e) => {
+        // 移动端由触摸事件处理，这里只处理桌面端
+        if (isMobileDevice()) return;
+        
+        setTimeout(() => {
+            targetColorIndex = index;
+            colorInput.value = currentColors[index];
+            openColorPickerModal();
+        }, 150);
+        });
+    });
+    }
+
+    // 更新渐变背景
+    /*
+
+        function updateGradient() {        
+        // 工具函数：十六进制颜色 → rgba（带透明度）
+        function hexToRgba(hex, alpha) {
+            // 处理简写十六进制（如 #FC0 → #FFCC00），兼容全写和简写
+            const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+            
+            // 提取 RGB 数值
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            const r = parseInt(result[1], 16);
+            const g = parseInt(result[2], 16);
+            const b = parseInt(result[3], 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        // 每个颜色的透明度在 0.5~0.8 之间随机（更灵动）
+        const gradient = `linear-gradient(${currentAngle}deg, ${currentColors.join(', ')})`;
+        gradientDisplay.style.background = gradient;
+    }
+    */
+    function updateGradient() {
+        let gradientCSS = '';
+        const colors = currentColors; // 引用当前颜色数组
+        
+        // 辅助函数：生成线性渐变字符串
+        const getLinear = (angle, cols) => `linear-gradient(${angle}deg, ${cols.join(', ')})`;
+
+        switch (currentMode) {
+            case 'mesh':
+                // === 弥散模式优化 (Soft Mesh) ===
+                // 优化点：增大光斑大小 (60%-90%)，减少透明部分的生硬感
+                {
+                    // 只有2色时：对角线分布，模拟两个大光球融合
+                    if (colors.length === 2) {
+                        gradientCSS = `
+                            radial-gradient(at 0% 0%, ${colors[0]} 0px, transparent 80%),
+                            radial-gradient(at 100% 100%, ${colors[1]} 0px, transparent 80%),
+                            linear-gradient(${currentAngle}deg, ${colors[0]}, ${colors[1]})
+                        `;
+                    } else {
+                        // 3-4色时：分布在不同位置，并混合一个底色
+                        // 我们使用随机位置稍微打散一点，或者使用固定的"美学位置"
+                        // 为了导出稳定，这里使用固定的美学位置，但颜色顺序跟随 currentColors
+                        
+                        const layers = [];
+                        // 1. 添加背景底色（取最后一个颜色作为基调，防止有空隙）
+                        // layers.push(`background-color: ${colors[colors.length-1]}`); // CSS属性中 background 包含了 color
+                        
+                        // 2. 创建多个大光斑
+                        // 左上角 (主色)
+                        layers.push(`radial-gradient(at 10% 10%, ${colors[0]} 0px, transparent 75%)`);
+                        
+                        // 右下角 (次色)
+                        if (colors[1]) layers.push(`radial-gradient(at 90% 90%, ${colors[1]} 0px, transparent 75%)`);
+                        
+                        // 中间偏左下 或 右上 (第三色)
+                        if (colors[2]) layers.push(`radial-gradient(at 20% 80%, ${colors[2]} 0px, transparent 70%)`);
+                        
+                        // 右上 (第四色)
+                        if (colors[3]) layers.push(`radial-gradient(at 80% 20%, ${colors[3]} 0px, transparent 70%)`);
+
+                        // 3. 最后叠加一个极其淡的线性渐变，统一色调
+                        layers.push(`linear-gradient(${currentAngle}deg, ${colors[0]} 0%, transparent 100%)`);
+                        
+                        // 组合 (CSS 中 background 多层叠加，先写的在上面，所以我们要把底色放最后)
+                        // 但上面的 push 顺序是: 光斑 -> 线性。
+                        // CSS 语法: background: layer1, layer2, layer3...
+                        // 为了让光斑明显，我们直接组合。
+                        
+                        // 优化策略：底色用线性渐变打底，光斑叠加在上面
+                        const base = `linear-gradient(${currentAngle + 180}deg, ${colors[colors.length-1]}, ${colors[0]})`;
+                        
+                        // 重新构建 layers，这次把光斑放在前面
+                        const spots = [];
+                        spots.push(`radial-gradient(at 0% 0%, ${colors[0]} 0px, transparent 70%)`);
+                        if (colors[1]) spots.push(`radial-gradient(at 100% 0%, ${colors[1]} 0px, transparent 70%)`);
+                        if (colors[2]) spots.push(`radial-gradient(at 100% 100%, ${colors[2]} 0px, transparent 70%)`);
+                        if (colors[3]) spots.push(`radial-gradient(at 0% 100%, ${colors[3]} 0px, transparent 70%)`);
+                        
+                        gradientCSS = `${spots.join(', ')}, ${base}`;
+                    }
+                }
+                break;
+
+            case 'aurora':
+                // === 极光/光束模式 (Aurora) ===
+                // 这种模式非常适合深色或高饱和度颜色
+                // 逻辑：一个垂直或斜向的线性背景 + 顶部一个巨大的半圆形高光
+                {
+                    // 1. 背景：主色调的线性变化
+                    const bgAngle = currentAngle; 
+                    const base = `linear-gradient(${bgAngle}deg, ${colors.join(', ')})`;
+                    
+                    // 2. 光束：取第一个颜色（通常是亮色）做顶部高光
+                    // 混合模式：使用半透明的白色或第一个颜色的亮版
+                    // 这里我们模拟光从"上方"或"角度方向"打下来的感觉
+                    
+                    // 技巧：使用 circle at 50% -20% (在屏幕上方外面) 制造巨大的光晕
+                    const glowColor = colors[0];
+                    const glow = `radial-gradient(circle at 50% -20%, ${glowColor} 0%, transparent 70%)`;
+                    
+                    // 还可以加一个侧边的辅光
+                    const sideGlow = colors[1] ? `radial-gradient(circle at 100% 40%, ${colors[1]} 0%, transparent 50%)` : '';
+                    
+                    gradientCSS = sideGlow ? `${glow}, ${sideGlow}, ${base}` : `${glow}, ${base}`;
+                }
+                break;
+
+            case 'linear':
+            default:
+                // 标准线性
+                gradientCSS = `linear-gradient(${currentAngle}deg, ${colors.join(', ')})`;
+                break;
+        }
+
+        gradientDisplay.style.background = gradientCSS;
+        
+        // 确保导出功能获取正确的 CSS
+        // (这一步其实不需要额外代码，因为 exportCSS 是直接读取 gradientDisplay.style.background 的)
+    }
+    
+    // 设置事件监听器
+    function setupEventListeners() {
+
+          // 布局切换按钮事件
+        const layoutBtn = document.getElementById('layout-btn');
+        layoutBtn.addEventListener('click', () => {
+            // 只在这一组高质量模式中切换
+            const modes = ['linear', 'mesh', 'aurora'];
+            const currentIndex = modes.indexOf(currentMode);
+            const nextIndex = (currentIndex + 1) % modes.length;
+            currentMode = modes[nextIndex];
+            
+            updateGradient();
+            
+            // 更新按钮文字
+            layoutBtn.innerHTML = `<i class="fa fa-magic mr-1"></i>${modeNames[currentMode]}`;
+            showNotification(`已切换至 ${modeNames[currentMode].replace('布局:', '')}模式`);
+        });
+        // 文本颜色切换按钮事件
+        const toggleTextColorBtn = document.getElementById('toggle-text-color');
+        toggleTextColorBtn.addEventListener('click', () => {
+            currentTextColor = currentTextColor === 'black' ? 'white' : 'black';
+            toggleTextColorBtn.innerHTML = currentTextColor === 'black' ? 
+            '<i class="fa fa-font mr-1"></i>切换白色' : 
+            '<i class="fa fa-font mr-1"></i>切换黑色';
+            toggleTextColorBtn.className = currentTextColor === 'black' ? 
+            'px-3 py-1.5 rounded-lg bg-gray-200 text-gray-800 text-sm button-hover button-active' : 
+            'px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm button-hover button-active';
+        });
+
+        // 设置初始按钮状态（黑色）
+        toggleTextColorBtn.innerHTML = '<i class="fa fa-font mr-1"></i>切换白色';
+        toggleTextColorBtn.className = 'px-3 py-1.5 rounded-lg bg-gray-200 text-gray-800 text-sm button-hover button-active';
+
+        // 随机生成按钮事件
+        const randomBtn = document.getElementById('random-btn');
+        randomBtn.addEventListener('click', generateRandomColors);
+
+        // 渐变方向控制收起/展开
+        let directionExpanded = true;
+        toggleDirectionBtn.addEventListener('click', () => {
+            directionExpanded = !directionExpanded;
+            if (directionExpanded) {
+            directionControls.style.display = 'flex';
+            toggleDirectionBtn.innerHTML = '<i class="fa fa-chevron-up"></i> 收起';
+            } else {
+            directionControls.style.display = 'none';
+            toggleDirectionBtn.innerHTML = '<i class="fa fa-chevron-down"></i> 展开';
+            }
+        });
+        
+        // 渐变方向滑块
+        angleSlider.addEventListener('input', (e) => {
+            currentAngle = parseInt(e.target.value);
+            angleValue.textContent = `${currentAngle}°`;
+            updateGradient();
+        });
+
+
+      
+        // 添加颜色按钮
+        addColorBtn.addEventListener('click', () => {
+            if (currentColors.length < 4) {
+            // 添加一个新颜色，使用默认颜色或随机生成
+            const newColor = generateRandomColor();
+            currentColors.push(newColor);
+            renderColorControls();
+            updateGradient();
+            updateColorButtonsState();
+            showNotification(`已添加颜色 ${newColor.toUpperCase()}`);
+            } else {
+            showNotification('最多只能添加4个颜色');
+            }
+        });
+      // 删除颜色按钮
+      removeColorBtn.addEventListener('click', () => {
+        if (currentColors.length > 2) {
+          const removedColor = currentColors.pop();
+          renderColorControls();
+          updateGradient();
+          updateColorButtonsState();
+          showNotification(`已删除颜色 ${removedColor.toUpperCase()}`);
+        } else {
+          showNotification('最少需要2个颜色');
+        }
+      });
+      
+      // 颜色选择器模态框
+      closeModal.addEventListener('click', closeColorPickerModal);
+      cancelColor.addEventListener('click', closeColorPickerModal);
+      confirmColor.addEventListener('click', () => {
+        if (targetColorIndex !== null) {
+          currentColors[targetColorIndex] = colorInput.value;
+          renderColorControls();
+          updateGradient();
+          closeColorPickerModal();
+        }
+      });
+      
+      // 文本显示/隐藏切换功能
+      textToggle.addEventListener('click', () => {
+        textVisible = !textVisible;
+        textDisplay.style.opacity = textVisible ? '1' : '0';
+        titleDisplay.style.opacity = textVisible ? '1' : '0';
+        textToggle.innerHTML = textVisible ? 
+          '<i class="fa fa-eye mr-1"></i>隐藏文本' : 
+          '<i class="fa fa-eye-slash mr-1"></i>显示文本';
+      });
+      
+      // 导出相关功能
+      exportBtn.addEventListener('click', () => {
+        exportModal.classList.remove('hidden');
+        setTimeout(() => {
+          exportModal.classList.add('opacity-100');
+          const modalContent = exportModal.querySelector('.color-picker-shadow');
+          if (modalContent) {
+            modalContent.classList.remove('scale-95');
+            modalContent.classList.add('scale-100');
+          }
+        }, 10);
+      });
+      
+      closeExportModal.addEventListener('click', closeExportModalFunc);
+      
+      exportImage.addEventListener('click', () => {
+        showNotification('正在导出图片...');
+        
+        // 获取设备屏幕尺寸或使用预设尺寸
+        const deviceWidth = window.innerWidth;
+        const deviceHeight = window.innerHeight;
+        
+        // 创建一个临时容器用于导出
+        const tempContainer = document.createElement('div');
+        tempContainer.style.width = `${deviceWidth}px`;
+        tempContainer.style.height = `${deviceHeight}px`;
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.top = '-9999px';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.zIndex = '9999';
+        document.body.appendChild(tempContainer);
+        
+        // 克隆导出内容
+        const clone = exportContainer.cloneNode(true);
+        clone.style.width = '100%';
+        clone.style.height = '100%';
+        tempContainer.appendChild(clone);
+        
+        console.log("随机按钮是否存在：", clone.querySelector('#random-btn')); 
+        // 如果输出 null，说明克隆时按钮未被包含
+
+        // 隐藏控制按钮
+        const exportBtnClone = clone.querySelector('#export-btn');
+        if (exportBtnClone) exportBtnClone.style.display = 'none';
+        const randomBtnClone = clone.querySelector('#random-btn');
+        if (randomBtnClone) randomBtnClone.style.display = 'none';
+
+        // 关键修复：确保文本元素完全可见
+        const textDisplayClone = clone.querySelector('#text-display');
+        if (textDisplayClone) {
+          // 移除可能导致文本截断的样式
+          textDisplayClone.style.overflow = 'visible';
+          textDisplayClone.style.whiteSpace = 'nowrap';
+          textDisplayClone.style.textOverflow = 'clip';
+          // 确保文本完全显示
+          textDisplayClone.style.maxWidth = 'none';
+          textDisplayClone.style.width = 'auto';
+        }
+
+
+        // 使用html2canvas进行截图
+        html2canvas(clone, {
+          scale: 2, // 提高清晰度
+          useCORS: true,
+          logging: false
+        }).then(canvas => {
+          // 创建下载链接
+          const link = document.createElement('a');
+          link.download = 'gradient-export.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          
+          // 清理临时元素
+          document.body.removeChild(tempContainer);
+          
+          showNotification('图片已成功导出');
+          closeExportModalFunc();
+        }).catch(err => {
+          console.error('导出失败:', err);
+          showNotification('导出失败，请重试');
+          document.body.removeChild(tempContainer);
+          closeExportModalFunc();
+        });
+      });
+      
+      /*
+    exportCss.addEventListener('click', () => {
+        const gradient = `linear-gradient(${currentAngle}deg, ${currentColors.join(', ')})`;
+        const cssCode = `background: ${gradient};`;
+        
+        navigator.clipboard.writeText(cssCode).then(() => {
+          showNotification('CSS代码已复制到剪贴板');
+        }).catch(err => {
+          showNotification('复制失败，请手动复制');
+          console.error('复制失败:', err);
+        });
+        
+        closeExportModalFunc();
+      });
+      */
+      exportCss.addEventListener('click', () => {
+        // 直接获取当前显示元素的 background 样式，这样最准确
+        const cssCode = `background: ${gradientDisplay.style.background};`;
+        
+        navigator.clipboard.writeText(cssCode).then(() => {
+          showNotification('CSS代码已复制到剪贴板');
+        }).catch(err => {
+          showNotification('复制失败，请手动复制');
+          console.error('复制失败:', err);
+        });
+        
+        closeExportModalFunc();
+      });
+      // 编辑文本按钮事件
+      editTextBtn.addEventListener('click', () => {
+        // 点击编辑时清空输入框，确保初始显示0/20
+        textInput.value = '';
+        // 初始化字符计数为0
+        charCount.textContent = '0/20';
+        charWarning.classList.add('hidden');
+        
+        // 打开模态框
+        textEditModal.classList.remove('hidden');
+        setTimeout(() => {
+          textEditModal.classList.add('opacity-100');
+          const modalContent = textEditModal.querySelector('.color-picker-shadow');
+          if (modalContent) {
+            modalContent.classList.remove('scale-95');
+            modalContent.classList.add('scale-100');
+          }
+        }, 10);
+      });
+      
+      // 关闭文本编辑模态框
+      closeTextModal.addEventListener('click', closeTextEditModal);
+      cancelText.addEventListener('click', closeTextEditModal);
+
+      confirmText.addEventListener('click', () => {
+        const newText = textInput.value.trim() || '@Kaimana'; // 保持默认值
+        textDisplay.textContent = newText;
+
+        // 应用文本颜色
+        textDisplay.style.color = currentTextColor;
+        titleDisplay.style.color = currentTextColor;
+
+
+        showNotification('文本已更新');
+        closeTextEditModal();
+      });
+      
+      // 在setupEventListeners函数中添加文本输入监听
+      // 添加文本输入监听
+      textInput.addEventListener('input', () => {
+        const maxLength = 20;
+        let currentValue = textInput.value;
+        let currentLength = currentValue.length;
+        
+        // 超过限制时截断
+        if (currentLength > maxLength) {
+          textInput.value = currentValue.substring(0, maxLength);
+          currentLength = maxLength;
+          charWarning.classList.remove('hidden');
+          
+          setTimeout(() => {
+            charWarning.classList.add('hidden');
+          }, 3000);
+        } else {
+          charWarning.classList.add('hidden');
+        }
+        
+        // 更新字符计数
+        charCount.textContent = `${currentLength}/${maxLength}`;
+      });
+      
+      // 确认编辑事件
+      confirmText.addEventListener('click', () => {
+        const newText = textInput.value.trim();
+        // 如果输入为空，使用默认文本@Kaimana
+        textDisplay.textContent = newText || '@Kaimana';
+        showNotification('文本已更新');
+        closeTextEditModal();
+      });
+    }
+
+    // 生成和谐随机颜色方案
+    function generateRandomColors() {
+        const colorCount = currentColors.length;
+        const newColors = generateHarmoniousColors(colorCount);
+        currentColors = newColors;
+        renderColorControls();
+        updateGradient();
+    }
+
+
+    // === 核心：终极优化版随机颜色生成 ===
+    function generateHarmoniousColors(count) {
+        // 定义四种高级氛围模式
+        const modes = [
+            'vibrant',    // 0. 鲜艳/波普：高饱和，对比色，适合营销图
+            'natural',    // 1. 自然/风景：模拟天空、海洋、森林，邻近色排序
+            'pastel',     // 2. 粉彩/INS风：高明度，低饱和，非常干净
+            'dark',       // 3. 深邃/极客：深色背景，霓虹点缀
+            'monochrome'  // 4. 单色高级：同色系深浅变化
+        ];
+        
+        // 随机选择一种模式（加权：自然和鲜艳模式出现概率更高）
+        const modeWeights = [0.25, 0.3, 0.2, 0.1, 0.15];
+        const randomVal = Math.random();
+        let accumulatedWeight = 0;
+        let selectedMode = 'vibrant';
+        
+        for(let i=0; i<modes.length; i++) {
+            accumulatedWeight += modeWeights[i];
+            if(randomVal <= accumulatedWeight) {
+                selectedMode = modes[i];
+                break;
+            }
+        }
+
+        console.log(`生成模式: ${selectedMode}`); // 调试用
+        let hslColors = []; // 暂存 HSL 对象 {h, s, l}
+
+        const baseHue = Math.floor(Math.random() * 360);
+
+        switch (selectedMode) {
+            case 'natural': 
+                // === 自然模式：邻近色 + 明度有序 ===
+                // 模仿日落（紫->红->黄）或 海洋（深蓝->浅青）
+                // 关键：色相跨度小(60度)，明度拉开差距
+                {
+                    const direction = Math.random() > 0.5 ? 1 : -1;
+                    const hueSpan = 40 + Math.random() * 40; // 40-80度跨度
+                    
+                    for (let i = 0; i < count; i++) {
+                        const progress = i / (count - 1); // 0 到 1
+                        
+                        // 色相平滑过渡
+                        const h = (baseHue + (progress * hueSpan * direction) + 360) % 360;
+                        // 饱和度：自然界颜色通常不过饱和 (60-85)
+                        const s = 60 + Math.random() * 25; 
+                        // 明度：强制从深到浅，或从浅到深
+                        // 比如：30 -> 80
+                        const l = 30 + (progress * 50) + (Math.random() * 10 - 5);
+                        
+                        hslColors.push({h, s, l});
+                    }
+                }
+                break;
+
+            case 'pastel':
+                // === 粉彩模式：高明度 + 低饱和 ===
+                // 关键：明度极高，怎么配都好看
+                {
+                    // 跨度可以大一点，因为颜色淡，冲突感弱
+                    const hueStep = 30 + Math.random() * 60; 
+                    for (let i = 0; i < count; i++) {
+                        const h = (baseHue + (i * hueStep)) % 360;
+                        const s = 50 + Math.random() * 20; // 50-70% 饱和
+                        const l = 82 + Math.random() * 10; // 82-92% 极亮
+                        hslColors.push({h, s, l});
+                    }
+                }
+                break;
+
+            case 'monochrome':
+                // === 单色模式：色相锁定，明度拉扯 ===
+                {
+                    const s = 60 + Math.random() * 30;
+                    for (let i = 0; i < count; i++) {
+                        // 色相只微调 ±5 度
+                        const h = (baseHue + Math.random() * 10 - 5 + 360) % 360;
+                        // 明度均匀分布
+                        const l = 20 + ((i / (count - 1)) * 70); // 20% -> 90%
+                        hslColors.push({h, s, l});
+                    }
+                }
+                break;
+                
+            case 'dark':
+                // === 深邃模式：大面积深色 + 局部高光 ===
+                {
+                    for (let i = 0; i < count; i++) {
+                        const h = (baseHue + (i * 40)) % 360;
+                        const s = 70 + Math.random() * 20;
+                        // 大部分颜色是深色，只有一个是稍微亮一点的
+                        // 这里简化为：整体偏暗
+                        const l = 15 + Math.random() * 25; // 15-40% 暗色
+                        hslColors.push({h, s, l});
+                    }
+                    // 强制让最后一个颜色变亮，形成发光感
+                    hslColors[hslColors.length-1].l = 65;
+                    hslColors[hslColors.length-1].s = 90;
+                }
+                break;
+
+            case 'vibrant':
+            default:
+                // === 鲜艳模式 + 桥接逻辑 ===
+                {
+                    // 随机生成主色
+                    hslColors.push({h: baseHue, s: 80, l: 55});
+                    
+                    // 生成尾色（对比色或远距离色）
+                    const endHue = (baseHue + 120 + Math.random() * 120) % 360;
+                    
+                    if (count === 2) {
+                        // 双色：直接存入
+                        hslColors.push({h: endHue, s: 80, l: 60});
+                        
+                        // 双色优化：如果跨度太大 (>150度)，插入中间桥接色逻辑其实在这里很难直接插数组
+                        // 变通：修改第二个颜色的色相，使其不完全对冲，或者降低其中一个的饱和度
+                        if (Math.abs(baseHue - endHue) > 150 && Math.abs(baseHue - endHue) < 210) {
+                            hslColors[1].l = 75; // 提高明度避免看起来脏
+                        }
+                    } else {
+                        // 3色或4色：计算中间插值
+                        // 关键：中间色的饱和度要比两头高，防止灰色地带
+                        for (let i = 1; i < count; i++) {
+                            const ratio = i / (count - 1);
+                            // 色相插值（处理 350->10 这种跨越0度的情况）
+                            let h;
+                            if (Math.abs(endHue - baseHue) > 180) {
+                                // 走短路
+                                if (endHue > baseHue) {
+                                    h = (baseHue - (360 - endHue + baseHue) * ratio + 360) % 360;
+                                } else {
+                                    h = (baseHue + (360 - baseHue + endHue) * ratio) % 360;
+                                }
+                            } else {
+                                h = baseHue + (endHue - baseHue) * ratio;
+                            }
+                            
+                            // 中间色 Saturation 提亮
+                            const s = 85 + Math.random() * 10;
+                            const l = 55 + Math.random() * 10;
+                            hslColors.push({h, s, l});
+                        }
+                    }
+                }
+                break;
+        }
+
+        // === 后处理：排序 ===
+        // 除了 'dark' 模式外，其他模式建议按明度排序，会让渐变更有序
+        // 或者按色相排序（彩虹序）
+        // 这里我们做一个简单的判断：如果不是'vibrant'模式(乱序更有冲击力)，则进行排序
+        if (selectedMode !== 'vibrant' && selectedMode !== 'dark') {
+            // 按明度从低到高排序
+            hslColors.sort((a, b) => a.l - b.l);
+            
+            // 50% 概率反转为 从高到低
+            if (Math.random() > 0.5) {
+                hslColors.reverse();
+            }
+        }
+
+        // === 输出 ===
+        return hslColors.map(c => hslToHex(c.h, c.s, c.l));
+    }
+
+
+    // HSL颜色转换为HEX
+    function hslToHex(h, s, l) {
+    h /= 360;
+    s /= 100;
+    l /= 100;
+    let r, g, b;
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    const toHex = x => {
+        const hex = Math.round(x * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    };
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+
+    // === 新增辅助函数：计算感知亮度 ===
+    // 用于排序，让人眼看起来更舒服
+    function getLightness(h, s, l) {
+        // 简单的加权计算，绿色和黄色在视觉上比蓝色更亮
+        // 这里简化处理，直接返回 HSL 的 L，但实际可以做的更复杂
+        return l; 
+    }
+
+
+    // 生成单个随机颜色（用于添加新颜色时）
+    function generateRandomColor() {
+    const hue = Math.floor(Math.random() * 360);
+    const saturation = 60 + Math.floor(Math.random() * 30); // 60-90%
+    const lightness = 40 + Math.floor(Math.random() * 40);  // 40-80%
+    return hslToHex(hue, saturation, lightness);
+    }
+
+    
+    // 更新颜色按钮状态
+    function updateColorButtonsState() {
+      // 更新添加按钮状态
+      if (currentColors.length >= 4) {
+        addColorBtn.disabled = true;
+        addColorBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        addColorBtn.disabled = false;
+        addColorBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      
+      // 更新删除按钮状态
+      if (currentColors.length <= 2) {
+        removeColorBtn.disabled = true;
+        removeColorBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        removeColorBtn.disabled = false;
+        removeColorBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+    
+    // 关闭文本编辑模态框函数
+    function closeTextEditModal() {
+      textEditModal.classList.remove('opacity-100');
+      const modalContent = textEditModal.querySelector('.color-picker-shadow');
+      if (modalContent) {
+        modalContent.classList.remove('scale-100');
+        modalContent.classList.add('scale-95');
+      }
+      
+      // 重置文本颜色按钮状态为默认（黑色）
+      currentTextColor = 'black';
+      const toggleTextColorBtn = document.getElementById('toggle-text-color');
+      toggleTextColorBtn.innerHTML = '<i class="fa fa-font mr-1"></i>切换白色';
+      toggleTextColorBtn.className = 'px-3 py-1.5 rounded-lg bg-gray-200 text-gray-800 text-sm button-hover button-active';
+
+      setTimeout(() => {
+        textEditModal.classList.add('hidden');
+      }, 300);
+    }
+    
+    // 打开颜色选择器模态框
+    function openColorPickerModal() {
+      colorPickerModal.classList.remove('hidden');
+      setTimeout(() => {
+        colorPickerModal.classList.add('opacity-100');
+        const modalContent = colorPickerModal.querySelector('.color-picker-shadow');
+        if (modalContent) {
+          modalContent.classList.remove('scale-95');
+          modalContent.classList.add('scale-100');
+        }
+      }, 10);
+    }
+    
+    // 关闭颜色选择器模态框
+    function closeColorPickerModal() {
+      colorPickerModal.classList.remove('opacity-100');
+      const modalContent = colorPickerModal.querySelector('.color-picker-shadow');
+      if (modalContent) {
+        modalContent.classList.remove('scale-100');
+        modalContent.classList.add('scale-95');
+      }
+      
+      setTimeout(() => {
+        colorPickerModal.classList.add('hidden');
+        targetColorIndex = null;
+      }, 300);
+    }
+    
+    // 关闭导出模态框
+    function closeExportModalFunc() {
+      exportModal.classList.remove('opacity-100');
+      const modalContent = exportModal.querySelector('.color-picker-shadow');
+      if (modalContent) {
+        modalContent.classList.remove('scale-100');
+        modalContent.classList.add('scale-95');
+      }
+      
+      setTimeout(() => {
+        exportModal.classList.add('hidden');
+      }, 300);
+    }
+    
+    // 显示通知
+    function showNotification(text) {
+      notificationText.textContent = text;
+      notification.classList.remove('translate-y-20', 'opacity-0');
+      
+      setTimeout(() => {
+        notification.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+    
+    // 禁止右键和禁止 F12
+    // document.addEventListener('contextmenu', e => e.preventDefault());
+    //document.addEventListener('keydown', e => {if (e.key === 'F12') e.preventDefault();});
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
