@@ -1252,7 +1252,6 @@
             }
         });
 
-        // 3. 修改导出图片按钮逻辑
         exportImage.addEventListener("click", () => {
           showNotification("正在生成图片...");
 
@@ -1262,7 +1261,27 @@
           htmlToImage
             .toPng(node, {
               quality: 1.0,
-              pixelRatio: 3, // 提高一点清晰度
+              pixelRatio: 3, // 保持高清
+              
+              // === 关键修改在这里：onclone 回调 ===
+              // 这个函数会在生成图片前，对克隆出来的 DOM 进行处理
+              // 我们在这里移除阴影，就不会影响原来的页面，但生成的图片就没有阴影BUG了
+              onclone: (clonedDoc) => {
+                  // 1. 找到克隆文档里的所有元素
+                  const allElements = clonedDoc.querySelectorAll('*');
+                  allElements.forEach(el => {
+                      // 强制移除所有阴影
+                      el.style.boxShadow = 'none';
+                  });
+
+                  // 2. 特别处理色块，移除可能的 transform 导致的位移
+                  const colorPreviews = clonedDoc.querySelectorAll('.color-preview');
+                  colorPreviews.forEach(el => {
+                      el.style.transform = 'none';
+                  });
+              },
+              // ===================================
+
               filter: (domNode) => {
                 // 排除掉操作按钮
                 const excludeIds = ["random-btn", "layout-btn", "export-btn"];
@@ -1279,7 +1298,7 @@
                 
                 // 显示模态框
                 mobilePreviewModal.classList.remove("hidden");
-                // 强制重绘以触发 transition
+                // 强制重绘
                 requestAnimationFrame(() => {
                     mobilePreviewModal.classList.add("opacity-100");
                 });
@@ -1304,7 +1323,6 @@
               closeExportModalFunc();
             });
         });
-
 
         exportCss.addEventListener("click", () => {
           // 直接获取当前显示元素的 background 样式，这样最准确
