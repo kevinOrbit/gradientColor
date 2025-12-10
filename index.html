@@ -70,7 +70,7 @@
         }
 
         .color-preview {
-          @apply w-16 h-16 rounded-xl cursor-pointer shadow-soft hover:shadow-medium transition-all duration-300;
+          @apply w-16 h-16 rounded-xl cursor-pointer  transition-all duration-300;
         }
 
         .hex-code {
@@ -149,7 +149,7 @@
       }
     </style>
   </head>
-  <body class="bg-gray-50 font-sans  h-[100dvh] overflow-hidden flex flex-col">
+  <body class="bg-gray-50 font-sans  h-[100dvh] overflow-y-auto flex flex-col">
     <!-- 导出区域容器 -->
     <div id="export-container" class="flex flex-col h-full bg-gray-50">
       <!-- 顶部：渐变色展示区域 -->
@@ -1743,3 +1743,4 @@
     </script>
   </body>
 </html>
+
