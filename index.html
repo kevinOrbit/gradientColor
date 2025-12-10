@@ -149,30 +149,30 @@
       }
     </style>
   </head>
-  <body class="bg-gray-50 font-sans min-h-screen flex flex-col">
+  <body class="bg-gray-50 font-sans  h-[100dvh] overflow-hidden flex flex-col">
     <!-- 导出区域容器 -->
-    <div id="export-container" class="flex flex-col min-h-screen">
+    <div id="export-container" class="flex flex-col h-full bg-gray-50">
       <!-- 顶部：渐变色展示区域 -->
       <header
         id="gradient-display"
-        class="flex-1 flex flex-col items-center justify-center p-3 gradient-transition"
+        class="flex-1  min-h-[70vh]  flex flex-col items-center justify-center p-2 gradient-transition w-full"
       >
         <div
           id="title-display"
-          class="text-black text-1xl md:text-4xl font-bold tracking-wider transition-opacity duration-500 text-display-optimized"
+          class="text-black text-2xl md:text-4xl font-bold tracking-wider transition-opacity duration-500 text-display-optimized mb-1"
         >
           GradientColor
         </div>
         <div
           id="text-display"
-          class="text-black text-sm md:text-sm font-bold tracking-wider transition-opacity duration-500 text-display-optimized"
+          class="text-black text-sm md:text-base font-bold tracking-wider transition-opacity duration-500 text-display-optimized"
         >
           @Kaimana
         </div>
       </header>
 
       <!-- 底部：颜色控制区 -->
-      <div class="p-4 md:p-6 bg-white shadow-soft">
+      <div class="p-2 md:p-6 bg-white shadow-soft z-10">
         <!-- 动态颜色控制区域 -->
         <div
           id="color-controls-container"
@@ -421,6 +421,30 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- 新增：移动端图片预览模态框 -->
+    <div
+      id="mobile-preview-modal"
+      class="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300 p-6"
+    >
+      <div class="relative w-full max-w-sm">
+        <img
+          id="mobile-preview-image"
+          src=""
+          alt="Preview"
+          class="w-full rounded-xl shadow-2xl border-2 border-white/20"
+        />
+        <button
+          id="close-mobile-preview"
+          class="absolute -top-4 -right-4 w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold shadow-lg"
+        >
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <p class="text-white/90 mt-6 text-center text-sm font-medium bg-black/50 px-4 py-2 rounded-full">
+        <i class="fa fa-hand-pointer-o mr-2"></i>长按图片即可保存到相册
+      </p>
     </div>
 
     <script type="text/javascript">
@@ -1207,42 +1231,81 @@
 
         closeExportModal.addEventListener("click", closeExportModalFunc)
 
-        exportImage.addEventListener("click", () => {
-          showNotification("正在导出图片...")
 
-          const node = document.getElementById("export-container")
+        // 1. 获取预览模态框元素 (放在 setupEventListeners 开头)
+        const mobilePreviewModal = document.getElementById("mobile-preview-modal");
+        const mobilePreviewImage = document.getElementById("mobile-preview-image");
+        const closeMobilePreview = document.getElementById("close-mobile-preview");
+
+        // 2. 绑定关闭预览的事件
+        closeMobilePreview.addEventListener("click", () => {
+             mobilePreviewModal.classList.remove("opacity-100");
+             setTimeout(() => {
+                 mobilePreviewModal.classList.add("hidden");
+             }, 300);
+        });
+        
+        // 点击背景也可以关闭
+        mobilePreviewModal.addEventListener("click", (e) => {
+            if (e.target === mobilePreviewModal) {
+                 closeMobilePreview.click();
+            }
+        });
+
+        // 3. 修改导出图片按钮逻辑
+        exportImage.addEventListener("click", () => {
+          showNotification("正在生成图片...");
+
+          const node = document.getElementById("export-container");
 
           // 使用 html-to-image 库
-          // filter 选项用于在生成图片时排除掉不需要的元素（按钮）
           htmlToImage
             .toPng(node, {
               quality: 1.0,
-              pixelRatio: 2, // 2倍像素比，保证高清
+              pixelRatio: 3, // 提高一点清晰度
               filter: (domNode) => {
-                // 排除掉操作按钮，ID 根据你 HTML 中的定义
-                const excludeIds = ["random-btn", "layout-btn", "export-btn"]
+                // 排除掉操作按钮
+                const excludeIds = ["random-btn", "layout-btn", "export-btn"];
                 if (domNode.id && excludeIds.includes(domNode.id)) {
-                  return false
+                  return false;
                 }
-                return true
+                return true;
               },
             })
             .then(function (dataUrl) {
-              // 创建下载链接
-              const link = document.createElement("a")
-              link.download = "gradient-export.png"
-              link.href = dataUrl
-              link.click()
+              if (isMobileDevice()) {
+                // === 移动端逻辑：显示预览 ===
+                mobilePreviewImage.src = dataUrl;
+                
+                // 显示模态框
+                mobilePreviewModal.classList.remove("hidden");
+                // 强制重绘以触发 transition
+                requestAnimationFrame(() => {
+                    mobilePreviewModal.classList.add("opacity-100");
+                });
 
-              showNotification("图片已成功导出")
-              closeExportModalFunc()
+                showNotification("图片已生成，请长按保存");
+                closeExportModalFunc(); // 关闭原来的菜单
+                
+              } else {
+                // === 桌面端逻辑：直接下载 ===
+                const link = document.createElement("a");
+                link.download = `gradient-${new Date().getTime()}.png`;
+                link.href = dataUrl;
+                link.click();
+
+                showNotification("图片已成功导出");
+                closeExportModalFunc();
+              }
             })
             .catch(function (error) {
-              console.error("导出失败:", error)
-              showNotification("导出失败，请重试")
-              closeExportModalFunc()
-            })
-        })
+              console.error("导出失败:", error);
+              showNotification("导出失败，请重试");
+              closeExportModalFunc();
+            });
+        });
+
+
         exportCss.addEventListener("click", () => {
           // 直接获取当前显示元素的 background 样式，这样最准确
           const cssCode = `background: ${gradientDisplay.style.background};`
